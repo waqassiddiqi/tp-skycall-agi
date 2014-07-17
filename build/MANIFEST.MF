@@ -1,5 +1,7 @@
 Manifest-Version: 1.0
-Class-Path: . agi_lib/asterisk-java-0.3.1.jar agi_lib/xmemcached-1.4.2
- .jar agi_lib/log4j-1.2.14.jar agi_lib/slf4j-api-1.7.4.jar
+Class-Path: . agi_lib/log4j-1.2.15.jar agi_lib/mysql-connector-java-5.
+ 1.31-bin.jar agi_lib/asterisk-java.jar agi_lib/xmemcached-1.4.2.jar a
+ gi_lib/slf4j-api-1.7.7.jar agi_lib/slf4j-log4j12-1.7.7.jar agi_lib/lo
+ g4j-over-slf4j-1.7.7.jar agi_lib/slf4j-api-1.7.4.jar
 Main-Class: org.asteriskjava.fastagi.DefaultAgiServer
 

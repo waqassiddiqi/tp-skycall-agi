@@ -100,6 +100,8 @@ public class Robot extends BaseAgiScript {
 				break;
 			}
 		}
+		
+		channel = 1;
 		return chann;
 	}
 }
