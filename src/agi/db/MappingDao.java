@@ -1,6 +1,6 @@
 package agi.db;
 
-import java.sql.PreparedStatement;
+import java.sql.CallableStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -14,24 +14,23 @@ public class MappingDao {
 		db = DatabaseConnection.getInstance();
 	}
 	
-	public String getMapping(String virtualId) {
-		
+	public String getMapping(String virtualId, String msisdn) {
+		CallableStatement stmt = null;
 		ResultSet rs = null;
-		String strSql = "SELECT skype_id FROM mapping_tab WHERE virtual_id = ?";
-		PreparedStatement  stmt = null;
 		
 		try {
-			stmt = this.db.getConnection().prepareStatement(strSql);
-			stmt.setString(1, virtualId.trim());
+			stmt = this.db.getConnection().prepareCall("{ call sp_getSkypeId(?, ?) }");
+			stmt.setString(1, virtualId);
+			stmt.setString(2, msisdn);
 			
 			rs = stmt.executeQuery();
 			
 			if(rs.next()) {
 				return rs.getString(1);
 			}
-						
-		} catch (Exception e) {
-			log.error("getSubscriberByMsisdn failed: " + e.getMessage(), e);
+			
+		} catch (SQLException e) {
+			log.error("getMapping failed: " + e.getMessage(), e);
 		} finally {
 			try {
 				if(rs != null) rs.close();

@@ -22,7 +22,7 @@ public class DatabaseConnection {
 	}
 	
 	private void readConfig() {
-		ResourceBundle myResources = ResourceBundle.getBundle("client");
+		ResourceBundle myResources = ResourceBundle.getBundle("agi");
 		dbUsername = myResources.getString("db.user");
 		dbPassword = myResources.getString("db.password");
 		dbUrl = myResources.getString("db.url");

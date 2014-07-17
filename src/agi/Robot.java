@@ -9,6 +9,7 @@ import org.asteriskjava.fastagi.AgiException;
 import org.asteriskjava.fastagi.AgiRequest;
 import org.asteriskjava.fastagi.BaseAgiScript;
 
+import agi.Util.PromptRepository;
 import agi.db.MappingDao;
 import agi.memcached.MemcachedHandling;
 
@@ -61,23 +62,24 @@ public class Robot extends BaseAgiScript {
 		log.info("Channel UniqueId:" + agiReq.getUniqueId());
 
 		String id = "";
-		try {
+		
+		id = new MappingDao().getMapping(agiReq.getDnid(), agiReq.getCallerIdNumber());
+		log.info("SKype ID is: " + id);
+		
+		if(id != null && id.trim().length() > 0) {
 			
-			id = new MappingDao().getMapping(agiReq.getDnid());
-			
-			log.info("SKype ID is: " + id);
-			
-		} catch (Exception exp) {
-			log.error("Error 0", exp);
-		}
-		int idleChannel = getIdleChannel();
-		String cmd = "SIP/stsTrunk_" + idleChannel + "/" + id;
+			int idleChannel = getIdleChannel();
+			String cmd = "SIP/stsTrunk_" + idleChannel + "/" + id;
 
-		log.info("Executing: " + cmd);
-		try {
-			exec("Dial", cmd);
-		} catch (Exception exp) {
-			log.error("Error in executing ", exp);
+			log.info("Executing: " + cmd);
+			try {
+				exec("Dial", cmd);
+			} catch (Exception exp) {
+				log.error("Error in executing ", exp);
+			}
+			
+		} else {
+			streamFile(PromptRepository.getMessage("not_in_skype_list"), "0123456789#*");
 		}
 		
 		MDC.remove("requestid");
