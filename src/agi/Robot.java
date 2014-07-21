@@ -11,7 +11,9 @@ import org.asteriskjava.fastagi.BaseAgiScript;
 
 import agi.Util.PromptRepository;
 import agi.db.MappingDao;
+import agi.db.SubscriberDAO;
 import agi.memcached.MemcachedHandling;
+import agi.model.Subscriber;
 
 public class Robot extends BaseAgiScript {
 	private static Logger log = Logger.getLogger(Robot.class.getName());
@@ -61,25 +63,52 @@ public class Robot extends BaseAgiScript {
 		log.info("Channel Rdnis:" + agiReq.getRdnis());
 		log.info("Channel UniqueId:" + agiReq.getUniqueId());
 
-		String id = "";
+		Subscriber sub = new SubscriberDAO().getSubscriberByMsisdn("92" + agiReq.getCallerIdNumber());
 		
-		id = new MappingDao().getMapping(agiReq.getDnid(), agiReq.getCallerIdNumber());
-		log.info("SKype ID is: " + id);
-		
-		if(id != null && id.trim().length() > 0) {
+		if(sub != null && sub.getStatus() == 1) {
+			String id = "";
 			
-			int idleChannel = getIdleChannel();
-			String cmd = "SIP/stsTrunk_" + idleChannel + "/" + id;
+			id = new MappingDao().getMapping(agiReq.getDnid(), agiReq.getCallerIdNumber());
+			log.info("Skype ID is: " + id);
+			
+			if(id != null && id.trim().length() > 0) {
+				
+				int idleChannel = getIdleChannel();
+				
+				if(idleChannel > 0) {
+					String cmd = "SIP/stsTrunk_" + idleChannel + "/" + id;
 
-			log.info("Executing: " + cmd);
-			try {
-				exec("Dial", cmd);
-			} catch (Exception exp) {
-				log.error("Error in executing ", exp);
+					log.info("Executing: " + cmd);
+					
+					try {
+						exec("Dial", cmd);
+						
+						String var = getVariable("DIALSTATUS");
+						
+						log.debug("DIALSTATUS: " + var);
+						
+						if(var != null && !var.toLowerCase().equalsIgnoreCase("answer")) {
+							streamFile(PromptRepository.getMessage("prompt.b_party_not_available"), "0123456789#*");
+						}
+						
+					} catch (Exception exp) {
+						log.error("Error in executing ", exp);
+					}
+				} else {
+					answer();
+					log.debug("Playing no_free_channel prompt");
+					streamFile(PromptRepository.getMessage("prompt.no_free_channel"), "0123456789#*");
+				}
+			} else {
+				answer();
+				log.debug("Playing not_in_skype_list prompt");
+				streamFile(PromptRepository.getMessage("prompt.not_in_skype_list"), "0123456789#*");
 			}
 			
 		} else {
-			streamFile(PromptRepository.getMessage("not_in_skype_list"), "0123456789#*");
+			answer();
+			log.debug("Playing not_a_subscriber prompt");
+			streamFile(PromptRepository.getMessage("prompt.not_a_subscriber"), "0123456789#*");
 		}
 		
 		MDC.remove("requestid");
