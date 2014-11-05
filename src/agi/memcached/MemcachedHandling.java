@@ -117,4 +117,15 @@ public class MemcachedHandling {
 		}
 		return null;
 	}	
+	
+	public void clearCache() {
+		try {
+			
+			log.debug("[Memcached] Clearing cache");
+			
+			client.flushAll();
+		} catch (Exception ex) {
+			log.error(ex.getMessage(), ex);
+		}
+	}
 }

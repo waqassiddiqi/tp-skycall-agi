@@ -9,6 +9,7 @@ import org.asteriskjava.fastagi.AgiException;
 import org.asteriskjava.fastagi.AgiRequest;
 import org.asteriskjava.fastagi.BaseAgiScript;
 
+import agi.Util.CDRGenerator;
 import agi.Util.PromptRepository;
 import agi.db.MappingDao;
 import agi.db.SubscriberDAO;
@@ -19,11 +20,15 @@ public class Robot extends BaseAgiScript {
 	private static Logger log = Logger.getLogger(Robot.class.getName());
 	private static int channel = 1;
 	private static int max_channels;
+	private static int ringTimeout = 45;
 	public static MemcachedHandling mch;	
+	private static int searchTries = 1;
 	
 	static {
 		ResourceBundle myResources = ResourceBundle.getBundle("agi");
+		searchTries = Integer.parseInt(myResources.getString("channel_search_tries"));
 		max_channels = Integer.parseInt(myResources.getString("max_channels"));
+		ringTimeout = Integer.parseInt(myResources.getString("ring_time_out"));
 		initializeMemcache(myResources);
 	}
 
@@ -64,6 +69,8 @@ public class Robot extends BaseAgiScript {
 		log.info("Channel UniqueId:" + agiReq.getUniqueId());
 
 		Subscriber sub = new SubscriberDAO().getSubscriberByMsisdn("92" + agiReq.getCallerIdNumber());
+		String cmd = "";
+		String var = "";
 		
 		if(sub != null && sub.getStatus() == 1) {
 			String id = "";
@@ -76,18 +83,23 @@ public class Robot extends BaseAgiScript {
 				int idleChannel = getIdleChannel();
 				
 				if(idleChannel > 0) {
-					String cmd = "SIP/stsTrunk_" + idleChannel + "/" + id;
+					cmd = "SIP/stsTrunk_" + String.format("%02d", idleChannel) + "/" + id;
 
+					CDRGenerator.getInstance().generate(
+							new String[] { agiReq.getUniqueId(), "92" + agiReq.getCallerIdNumber(), agiReq.getDnid(), 
+									Integer.toString(idleChannel) });
+					
 					log.info("Executing: " + cmd);
 					
 					try {
-						exec("Dial", cmd);
+						exec("Dial", new String[] { cmd, Integer.toString(ringTimeout) });
 						
-						String var = getVariable("DIALSTATUS");
+						var = getVariable("DIALSTATUS");
 						
 						log.debug("DIALSTATUS: " + var);
 						
 						if(var != null && !var.toLowerCase().equalsIgnoreCase("answer")) {
+							answer();
 							streamFile(PromptRepository.getMessage("prompt.b_party_not_available"), "0123456789#*");
 						}
 						
@@ -111,11 +123,27 @@ public class Robot extends BaseAgiScript {
 			streamFile(PromptRepository.getMessage("prompt.not_a_subscriber"), "0123456789#*");
 		}
 		
+		CDRGenerator.getInstance().generate(
+				new String[] { agiReq.getUniqueId(), var });
+		
 		MDC.remove("requestid");
 	}
 
 	public static int getIdleChannel() {
 		int chann = -1;
+		
+		for(int j=0; j<searchTries; j++) {
+			for(int i=1; i<=max_channels; i++) {
+				if(mch.getFromMemcache(chann + "") == null) {
+					chann = i;
+					mch.putInMemcached(chann + "", chann);
+					return i;
+				}
+			}
+		}
+		
+		return -1;
+		/*
 		for (;;) {
 			if (channel < max_channels) {
 				chann = channel % max_channels;
@@ -126,11 +154,14 @@ public class Robot extends BaseAgiScript {
 			}
 			Object value = mch.getFromMemcache(chann + "");
 			if (value == null) {
+				mch.putInMemcached(chann + "", chann);
 				break;
 			}
 		}
 		
-		channel = 1;
+		channel = 0;
+		
 		return chann;
+		*/
 	}
 }
